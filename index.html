@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://tile.openstreetmap.org https://server.arcgisonline.com https://*.tile.opentopomap.org; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Locații">
+<title>Locații de filmare</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div id="lock" class="lock">
+  <div class="lock-bg" aria-hidden="true"></div>
+  <form id="lockForm" class="lock-card" autocomplete="on">
+    <div class="lock-logo" aria-hidden="true">🌙</div>
+    <h1>Locații de filmare</h1>
+    <p class="muted">Harta Lunei · date criptate pe dispozitiv</p>
+    <input class="sr-only" type="text" name="username" value="gabi" autocomplete="username" tabindex="-1" aria-hidden="true">
+    <input id="pw" type="password" name="password" autocomplete="current-password" placeholder="Parola" autocapitalize="characters" spellcheck="false" required>
+    <label class="remember"><input id="remember" type="checkbox" checked> Ține-mă minte pe acest dispozitiv</label>
+    <button id="unlockBtn" type="submit"><span class="btn-label">Deschide harta</span><span class="spinner" aria-hidden="true"></span></button>
+    <p id="lockMsg" class="lock-msg" role="alert"></p>
+  </form>
+</div>
+
+<div id="app" class="app" hidden>
+  <div id="map" aria-label="Harta Moldovei cu locațiile"></div>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-moon" aria-hidden="true">🌙</span><div><b>Locații de filmare</b><small id="count"></small></div></div>
+    <nav id="filters" class="chips" aria-label="Filtru după status">
+      <button class="chip on" data-f="toate">Toate</button>
+      <button class="chip" data-f="propus"><i class="dot propus"></i>Propuse</button>
+      <button class="chip" data-f="vizitat"><i class="dot vizitat"></i>Vizitate</button>
+      <button class="chip" data-f="filmat"><i class="dot filmat"></i>Filmate</button>
+    </nav>
+  </header>
+
+  <div class="fabs">
+    <div class="seg" role="group" aria-label="Tip hartă">
+      <button data-l="harta" class="on">Hartă</button><button data-l="satelit">Satelit</button><button data-l="teren">Teren</button>
+    </div>
+    <button id="btnList" class="fab" aria-label="Lista locațiilor">☰</button>
+    <button id="btnLocate" class="fab" aria-label="Unde sunt eu">◎</button>
+    <button id="btnLock" class="fab" aria-label="Blochează harta">🔒</button>
+  </div>
+
+  <section id="sheet" class="sheet" aria-hidden="true" aria-label="Locația selectată">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div id="sheetBody"></div>
+  </section>
+
+  <section id="list" class="panel" aria-hidden="true" aria-label="Toate locațiile">
+    <div class="panel-head"><b>Toate locațiile</b><button class="x" data-close="list" aria-label="Închide">✕</button></div>
+    <div id="listBody" class="list"></div>
+  </section>
+
+  <section id="detail" class="detail" aria-hidden="true" aria-label="Detaliile locației"></section>
+  <div id="lightbox" class="lightbox" hidden></div>
+  <div id="toast" class="toast" role="status"></div>
+</div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
