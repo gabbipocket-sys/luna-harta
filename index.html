@@ -49,6 +49,7 @@
     <div class="seg" role="group" aria-label="Tip hartă">
       <button data-l="harta" class="on">Hartă</button><button data-l="satelit">Satelit</button><button data-l="teren">Teren</button>
     </div>
+    <button id="btnFacets" class="fab" aria-label="Filtre: categorie, sezon, stil"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg><i id="facetBadge" class="badge" hidden></i></button>
     <button id="btnList" class="fab" aria-label="Lista locațiilor">☰</button>
     <button id="btnLocate" class="fab" aria-label="Unde sunt eu">◎</button>
     <button id="btnLock" class="fab" aria-label="Blochează harta">🔒</button>
@@ -64,6 +65,14 @@
     <div id="listBody" class="list"></div>
   </section>
 
+  <section id="facets" class="panel" aria-hidden="true" aria-label="Filtre">
+    <div class="panel-head"><b>Filtre</b><button class="x" data-close="facets" aria-label="Închide">✕</button></div>
+    <div class="list facet-body">
+      <input id="q" type="search" class="search" placeholder="Caută: nume, raion, idee de cadru…" autocomplete="off">
+      <div id="facetGroups"></div>
+    </div>
+    <div class="facet-foot"><button id="facetReset" class="btn ghost">Resetează</button><button id="facetApply" class="btn primary">Arată locațiile</button></div>
+  </section>
   <section id="detail" class="detail" aria-hidden="true" aria-label="Detaliile locației"></section>
   <div id="lightbox" class="lightbox" hidden></div>
   <div id="toast" class="toast" role="status"></div>

@@ -10,6 +10,22 @@
   const ST_LABEL = { propus: 'propus', vizitat: 'vizitat', filmat: 'filmat' };
   const CHECK = 'luna-harta-ok';
   let KEY = null, META = null, DATA = null, map = null, layers = {}, curLayer = null, markers = new Map(), selected = null, filter = 'toate', meMarker = null;
+  // fațetele (Luna le scrie la fiecare locație): în grup = SAU, între grupuri = ȘI
+  const FACETS = [
+    ['categorie', 'Ce e', { 'natură': '🌲', 'apă': '💧', 'patrimoniu': '🏰', 'arhitectură': '🏛️', 'urban': '🏙️', 'rural': '🏡', 'viticol': '🍇', 'industrial': '🏭' }],
+    ['sezon', 'Sezon', { 'primăvară': '🌸', 'vară': '☀️', 'toamnă': '🍂', 'iarnă': '❄️', 'tot anul': '🔁' }],
+    ['moment', 'Momentul zilei', { 'răsărit': '🌅', 'zi': '🌤️', 'apus': '🌇', 'ora albastră': '🌌', 'noapte': '🌙' }],
+    ['stil', 'Stil', {}], ['potrivit', 'Potrivit pentru', {}], ['regiune', 'Regiune', {}], ['raion', 'Raion', {}]];
+  let sel = {}, query = '';
+  try { const s = JSON.parse(localStorage.getItem('harta-filtre') || '{}'); sel = s.sel || {}; query = s.q || ''; } catch { sel = {}; }
+  const vals = (l, k) => { const v = l[k]; return Array.isArray(v) ? v : (v ? [v] : []); };
+  const fold = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const activeCount = () => Object.values(sel).reduce((n, a) => n + (a || []).length, 0) + (query ? 1 : 0);
+  function matchFacets(l, skip) {
+    for (const [k] of FACETS) { if (k === skip) continue; const s = sel[k] || []; if (s.length && !vals(l, k).some(v => s.includes(v))) return false; }
+    if (query) { const h = fold([l.nume, l.zona, l.tip, l.raion, l.pe_scurt, (l.cadre || []).join(' '), (l.taguri || []).join(' '), (l.concept || []).join(' ')].join(' ')); if (!fold(query).split(/\s+/).every(w => h.includes(w))) return false; }
+    return true;
+  }
   const imgCache = new Map();
 
   // ---------- utilitare DOM sigure ----------
@@ -123,7 +139,7 @@
     });
     if (locs.length) map.fitBounds(L.latLngBounds(locs.map(l => [+l.lat, +l.lon])).pad(0.25), { maxZoom: 11, animate: false });
     map.on('click', () => closeSheet());
-    updateCount(); buildList();
+    $('#q').value = query; applyFilter();
     window.addEventListener('hashchange', route); route();
   }
   function pinIcon(l, sel, i = 0) {
@@ -134,11 +150,37 @@
     curLayer = layers[k]; curLayer.addTo(map);
     document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.l === k));
   }
-  function visible(l) { return filter === 'toate' || st(l.status) === filter; }
+  function visible(l) { return (filter === 'toate' || st(l.status) === filter) && matchFacets(l); }
   function updateCount() {
-    const all = DATA.locations || [], n = all.filter(visible).length;
-    $('#count').textContent = filter === 'toate' ? `${all.length} locații · Moldova` : `${n} din ${all.length} locații`;
+    const all = DATA.locations || [], n = all.filter(visible).length, a = activeCount();
+    $('#count').textContent = (filter === 'toate' && !a) ? `${all.length} locații · Moldova` : `${n} din ${all.length} locații`;
+    const b = $('#facetBadge'); b.hidden = !a; b.textContent = a ? String(a) : '';
   }
+  function saveFacets() { try { localStorage.setItem('harta-filtre', JSON.stringify({ sel, q: query })); } catch {} }
+  // panoul de filtre: fiecare valoare cu câte locații ar rămâne dacă o alegi
+  function buildFacets() {
+    const all = DATA.locations || [];
+    const groups = FACETS.map(([k, title, icons]) => {
+      const seen = new Map();
+      all.forEach(l => vals(l, k).forEach(v => seen.set(v, 0)));
+      if (!seen.size) return null;
+      const pool = all.filter(l => (filter === 'toate' || st(l.status) === filter) && matchFacets(l, k));
+      pool.forEach(l => vals(l, k).forEach(v => seen.set(v, (seen.get(v) || 0) + 1)));
+      const order = Object.keys(icons);
+      const items = [...seen.entries()].sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99) || b[1] - a[1] || a[0].localeCompare(b[0], 'ro'));
+      return el('div', { class: 'fgroup' }, el('h4', { text: title }),
+        el('div', { class: 'fchips' }, items.map(([v, n]) => {
+          const on = (sel[k] || []).includes(v);
+          return el('button', { class: `chip${on ? ' on' : ''}${!n && !on ? ' dim' : ''}`, 'aria-pressed': String(on), onclick: () => {
+            const s = new Set(sel[k] || []); s.has(v) ? s.delete(v) : s.add(v); sel[k] = [...s]; saveFacets(); applyFilter(); buildFacets();
+          } }, `${icons[v] ? icons[v] + ' ' : ''}${v}`, el('small', { text: String(n) }));
+        })));
+    }).filter(Boolean);
+    $('#facetGroups').replaceChildren(...groups);
+    const n = (DATA.locations || []).filter(visible).length;
+    $('#facetApply').textContent = n ? `Arată ${n} ${n === 1 ? 'locație' : 'locații'}` : 'Nicio locație';
+  }
+  function toggleFacets(open) { const p = $('#facets'); if (open) buildFacets(); p.classList.toggle('open', open); p.setAttribute('aria-hidden', String(!open)); }
   function applyFilter() {
     for (const { m, l } of markers.values()) { if (visible(l)) m.addTo(map); else map.removeLayer(m); }
     updateCount(); buildList();
@@ -175,8 +217,15 @@
     if (l.rasarit) c.push('☀️ răsărit în cadru');
     if (l.apus) c.push('🌇 apus în cadru');
     if (l.altitudine) c.push(`⛰️ ${l.altitudine} m`);
+    (l.categorie || []).forEach(x => c.push(`${FACETS[0][2][x] || ''} ${x}`.trim()));
     (l.concept || []).slice(0, 3).forEach(x => c.push(x));
     return c.map(t => el('span', { class: 'tg', text: t }));
+  }
+  // etichetele din pagina locației: apeși una -> harta arată doar locațiile cu ea
+  function facetTags(l) {
+    const out = [];
+    for (const [k, title, icons] of FACETS) for (const v of vals(l, k)) out.push(el('button', { class: 'tg tgb', title, onclick: () => { sel = { [k]: [v] }; query = ''; $('#q').value = ''; saveFacets(); applyFilter(); history.back(); toast(`Filtru: ${v}`); } }, `${icons[v] ? icons[v] + ' ' : ''}${v}`));
+    return out.length ? el('div', { class: 'tags' }, out) : null;
   }
   function closeSheet() {
     const sh = $('#sheet'); sh.classList.remove('open'); sh.setAttribute('aria-hidden', 'true');
@@ -229,6 +278,7 @@
         credit,
         l.pe_scurt ? el('p', { class: 'lead', style: 'margin-top:12px;font-size:17px', text: l.pe_scurt }) : null,
         el('div', { class: 'tags', style: 'margin-top:10px' }, chips(l), (l.taguri || []).map(t => el('span', { class: 'tg', text: t }))),
+        sec('Etichete', facetTags(l)),
         sec('De ce e epic', para(l.de_ce)),
         sec('Când', para(l.cand)),
         sec('Lumina', para(l.lumina)),
@@ -265,6 +315,15 @@
   $('#filters').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; filter = b.dataset.f; document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); closeSheet(); applyFilter(); });
   document.querySelector('.seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setLayer(b.dataset.l); });
   $('#btnList').addEventListener('click', () => togglePanel(true));
+  $('#btnFacets').addEventListener('click', () => toggleFacets(true));
+  document.querySelector('[data-close="facets"]').addEventListener('click', () => toggleFacets(false));
+  $('#facetApply').addEventListener('click', () => {
+    toggleFacets(false); closeSheet();
+    const vis = (DATA.locations || []).filter(visible);
+    if (vis.length) map.flyToBounds(L.latLngBounds(vis.map(l => [+l.lat, +l.lon])).pad(0.3), { maxZoom: 12, duration: 0.8 });
+  });
+  $('#facetReset').addEventListener('click', () => { sel = {}; query = ''; $('#q').value = ''; saveFacets(); applyFilter(); buildFacets(); });
+  $('#q').addEventListener('input', e => { query = e.target.value.trim(); saveFacets(); applyFilter(); buildFacets(); });
   document.querySelector('[data-close="list"]').addEventListener('click', () => togglePanel(false));
   $('#btnLocate').addEventListener('click', () => {
     if (!navigator.geolocation) return toast('Locația nu e disponibilă');
